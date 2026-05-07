@@ -1,0 +1,198 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+interface Store {
+  id: string; name: string;
+}
+
+interface User {
+  id: string; name: string; username: string; role: string; storeId: string | null;
+}
+
+const roleLabel: Record<string, string> = {
+  OWNER: "超级管理员",
+  PARTNER: "合伙人",
+  STORE_MANAGER: "店员",
+};
+
+export default function AdminPage() {
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 新建表单
+  const [form, setForm] = useState({ username: "", name: "", password: "", role: "STORE_MANAGER", storeId: "" });
+  const [msg, setMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const [meRes, usersRes, storesRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/users"),
+        fetch("/api/stores"),
+      ]);
+      if (!meRes.ok) { router.push("/"); return; }
+      const me = await meRes.json();
+      if (me.role !== "OWNER") { router.push("/dashboard"); return; }
+      setCurrentUser(me);
+      setUsers(await usersRes.json());
+      setStores(await storesRes.json());
+      setLoading(false);
+    }
+    load();
+  }, [router]);
+
+  async function createUser() {
+    if (!form.username || !form.name || !form.password) {
+      setMsg("请填写所有必填项"); return;
+    }
+    setSubmitting(true);
+    setMsg("");
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
+    setSubmitting(false);
+    if (res.ok) {
+      setUsers([...users, data]);
+      setForm({ username: "", name: "", password: "", role: "STORE_MANAGER", storeId: "" });
+      setMsg("创建成功");
+    } else {
+      setMsg(data.error || "创建失败");
+    }
+  }
+
+  async function disableUser(id: string, name: string) {
+    if (!confirm(`确定要禁用 ${name} 吗？（不会删除数据）`)) return;
+    const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setUsers(users.map(u => u.id === id ? { ...u, storeId: null } : u));
+    }
+  }
+
+  const storeById = Object.fromEntries(stores.map(s => [s.id, s.name]));
+
+  if (loading) {
+    return <div className="mx-auto max-w-lg px-4 py-20 text-center text-sm text-zinc-400">加载中…</div>;
+  }
+
+  return (
+    <div className="mx-auto max-w-lg px-4 py-6 space-y-6">
+      <h1 className="text-lg font-semibold text-brand-green">用户管理</h1>
+
+      {/* 新建用户 */}
+      <div className="rounded-xl bg-white p-4 space-y-3 shadow-sm">
+        <h2 className="text-sm font-medium text-zinc-700">新建账号</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-zinc-400">用户名 *</label>
+            <input
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              placeholder="1muyanxuan+缩写"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">姓名 *</label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              placeholder="例如：小李"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-zinc-400">初始密码 *</label>
+            <input
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              placeholder="至少4位"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">角色 *</label>
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value, storeId: "" })}
+              className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
+            >
+              <option value="STORE_MANAGER">店员</option>
+              <option value="PARTNER">合伙人</option>
+            </select>
+          </div>
+        </div>
+        {form.role === "STORE_MANAGER" && (
+          <div>
+            <label className="text-xs text-zinc-400">所属门店 *</label>
+            <select
+              value={form.storeId}
+              onChange={(e) => setForm({ ...form, storeId: e.target.value })}
+              className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
+            >
+              <option value="">请选择门店</option>
+              {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {msg && <p className={`text-xs ${msg.includes("成功") ? "text-emerald-600" : "text-red-500"}`}>{msg}</p>}
+
+        <button
+          onClick={createUser}
+          disabled={submitting}
+          className="w-full rounded-lg bg-brand-green py-2.5 text-sm font-medium text-white hover:bg-brand-green-dark disabled:opacity-50 transition-colors"
+        >
+          {submitting ? "创建中…" : "创建账号"}
+        </button>
+      </div>
+
+      {/* 用户列表 */}
+      <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-zinc-100 text-sm font-medium text-zinc-700">
+          现有用户 ({users.length})
+        </div>
+        <div className="divide-y divide-zinc-50">
+          {users.map((u) => (
+            <div key={u.id} className="flex items-center justify-between px-4 py-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-800 truncate">{u.name}</span>
+                  <span className="text-xs text-zinc-400">@{u.username}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    u.role === "OWNER" ? "bg-amber-100 text-amber-700" :
+                    u.role === "PARTNER" ? "bg-blue-100 text-blue-700" :
+                    "bg-zinc-100 text-zinc-500"
+                  }`}>{roleLabel[u.role] || u.role}</span>
+                  {u.storeId && storeById[u.storeId] && (
+                    <span className="text-xs text-zinc-400 truncate">{storeById[u.storeId]}</span>
+                  )}
+                </div>
+              </div>
+              {u.role !== "OWNER" && (
+                <button
+                  onClick={() => disableUser(u.id, u.name)}
+                  className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-2"
+                >
+                  禁用
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

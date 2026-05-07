@@ -6,10 +6,11 @@
 
 ## 技术栈
 
-- Next.js 16 (App Router) + TypeScript
+- Next.js 16 (App Router) + TypeScript + Turbopack
 - Tailwind CSS v4
-- 数据库待定（Supabase / PostgreSQL）
-- 部署目标：Vercel
+- Supabase PostgreSQL（生产数据库）
+- Vercel 部署（通过 GitHub OAuth 关联）
+- 本地 dev 也直连 Supabase，无本地 SQLite
 
 ## 业务规则
 
@@ -44,4 +45,17 @@
 npm run dev    # 启动开发服务器 (http://localhost:3000)
 npm run build  # 构建生产版本
 npm run lint   # 代码检查
+npx tsx scripts/seed.ts  # 重置种子数据
 ```
+
+## 环境变量 (.env)
+
+- `DATABASE_URL` — Supabase PostgreSQL 连接串（端口 5432 本地/直连，6543 Vercel 连接池）
+- `SUPABASE_URL` — https://prvgbgouexmhinxphuwh.supabase.co
+- `SUPABASE_ANON_KEY` — 可发布密钥
+
+## 关键文件
+
+- `src/lib/db.ts` — 数据库层（pg Pool，async/await）
+- `src/lib/session.ts` — Cookie HMAC 认证
+- `src/proxy.ts` — 路由守卫（Next.js 16 规范，替代旧 middleware）

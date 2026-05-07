@@ -17,10 +17,10 @@ async function seed() {
   await pool.query("INSERT INTO stores (id, name) VALUES ($1, $2), ($3, $4)",
     ["store-1", "中洲湾旗舰店", "store-2", "科技园分店（筹备中）"]);
 
-  await createUser({ id: "user-1", name: "Pascal", email: "pascal@snack.com", password: "123456", role: "OWNER" });
-  await createUser({ id: "user-2", name: "小王", email: "wang@snack.com", password: "123456", role: "STORE_MANAGER", storeId: "store-1" });
-  await createUser({ id: "user-3", name: "小李", email: "li@snack.com", password: "123456", role: "STORE_MANAGER", storeId: "store-1" });
-  await createUser({ id: "user-4", name: "小张", email: "zhang@snack.com", password: "123456", role: "STORE_MANAGER", storeId: "store-2" });
+  await createUser({ id: "user-1", name: "Pascal", username: "pascal", password: "123456", role: "OWNER" });
+  await createUser({ id: "user-2", name: "小王", username: "1muyanxuanxw", password: "123456", role: "STORE_MANAGER", storeId: "store-1" });
+  await createUser({ id: "user-3", name: "小李", username: "1muyanxuanxl", password: "123456", role: "STORE_MANAGER", storeId: "store-1" });
+  await createUser({ id: "user-4", name: "小张", username: "1muyanxuanxz", password: "123456", role: "STORE_MANAGER", storeId: "store-2" });
 
   const now = new Date().toISOString();
 

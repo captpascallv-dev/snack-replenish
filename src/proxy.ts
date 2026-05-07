@@ -25,8 +25,11 @@ export default function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/requests") ||
+    pathname.startsWith("/admin") ||
     pathname.startsWith("/api/requests") ||
-    pathname.startsWith("/api/stores")
+    pathname.startsWith("/api/stores") ||
+    pathname.startsWith("/api/users") ||
+    pathname.startsWith("/api/auth/password")
   ) {
     const session = parseSession(request);
     if (!session) {

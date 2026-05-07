@@ -6,8 +6,8 @@ const SECRET = process.env.SESSION_SECRET || "snack-replenish-dev-secret";
 export interface SessionUser {
   id: string;
   name: string;
-  email: string;
-  role: "OWNER" | "STORE_MANAGER";
+  username: string;
+  role: "OWNER" | "PARTNER" | "STORE_MANAGER";
   storeId: string | null;
 }
 

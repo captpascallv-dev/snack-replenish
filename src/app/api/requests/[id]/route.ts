@@ -13,8 +13,8 @@ export async function GET(
   const req = await getRequestById(id);
   if (!req) return NextResponse.json({ error: "未找到" }, { status: 404 });
 
-  // 店长只能看自己门店的
-  if (user.role !== "OWNER" && req.storeId !== user.storeId) {
+  // 店员只能看自己门店的
+  if (user.role !== "OWNER" && user.role !== "PARTNER" && req.storeId !== user.storeId) {
     return NextResponse.json({ error: "无权访问" }, { status: 403 });
   }
 
@@ -34,8 +34,8 @@ export async function PATCH(
   const existing = await getRequestById(id);
   if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
 
-  // 权限：只有 OWNER 能填写订货，店长只能确认自己门店的到货
-  if (body.action === "fulfill" && user.role !== "OWNER") {
+  // 权限：OWNER/PARTNER 能填写订货，店员只能确认自己门店的到货
+  if (body.action === "fulfill" && user.role !== "OWNER" && user.role !== "PARTNER") {
     return NextResponse.json({ error: "仅老板可填写订货信息" }, { status: 403 });
   }
   if (body.action === "receive") {

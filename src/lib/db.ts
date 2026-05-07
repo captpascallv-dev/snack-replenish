@@ -7,14 +7,19 @@ const pool = new Pool({
 });
 
 // ---- Types ----
-export type Role = "OWNER" | "STORE_MANAGER";
+export type Role = "OWNER" | "PARTNER" | "STORE_MANAGER";
+export const ROLE_LABELS: Record<Role, string> = {
+  OWNER: "超级管理员",
+  PARTNER: "合伙人",
+  STORE_MANAGER: "店员",
+};
 export type RequestStatus = "PENDING" | "ORDERED" | "RECEIVED";
 
 export interface Store {
   id: string; name: string;
 }
 export interface User {
-  id: string; name: string; email: string; role: Role; storeId: string | null;
+  id: string; name: string; email: string; username: string; role: Role; storeId: string | null;
 }
 export interface Fulfillment {
   orderDate: string; supplier: string;
@@ -43,32 +48,33 @@ function verifyPassword(password: string, stored: string): boolean {
   return hash === verify;
 }
 
-export async function getUserByEmail(email: string): Promise<User | undefined> {
+export async function getUserByUsername(username: string): Promise<User | undefined> {
   const { rows } = await pool.query(
-    'SELECT id, name, email, role, "storeId" FROM users WHERE email = $1', [email]
+    'SELECT id, name, email, username, role, "storeId" FROM users WHERE username = $1', [username]
   );
   if (rows.length === 0) return undefined;
   const r = rows[0];
-  return { id: r.id, name: r.name, email: r.email, role: r.role, storeId: r.storeId };
+  return { id: r.id, name: r.name, email: r.email, username: r.username, role: r.role, storeId: r.storeId };
 }
 
-export async function verifyLogin(email: string, password: string): Promise<User | null> {
+export async function verifyLogin(login: string, password: string): Promise<User | null> {
+  const col = login.includes("@") ? "email" : "username";
   const { rows } = await pool.query(
-    'SELECT id, name, email, password, role, "storeId" FROM users WHERE email = $1', [email]
+    `SELECT id, name, email, username, password, role, "storeId" FROM users WHERE "${col}" = $1`, [login]
   );
   if (rows.length === 0) return null;
   const r = rows[0];
   if (!verifyPassword(password, r.password)) return null;
-  return { id: r.id, name: r.name, email: r.email, role: r.role, storeId: r.storeId };
+  return { id: r.id, name: r.name, email: r.email, username: r.username, role: r.role, storeId: r.storeId };
 }
 
-export async function createUser(data: { id: string; name: string; email: string; password: string; role: Role; storeId?: string | null }): Promise<User> {
+export async function createUser(data: { id: string; name: string; username: string; password: string; role: Role; storeId?: string | null }): Promise<User> {
   const hashed = hashPassword(data.password);
   await pool.query(
-    'INSERT INTO users (id, name, email, password, role, "storeId") VALUES ($1, $2, $3, $4, $5, $6)',
-    [data.id, data.name, data.email, hashed, data.role, data.storeId ?? null]
+    'INSERT INTO users (id, name, username, email, password, role, "storeId") VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    [data.id, data.name, data.username, data.username + "@snack.local", hashed, data.role, data.storeId ?? null]
   );
-  return { id: data.id, name: data.name, email: data.email, role: data.role, storeId: data.storeId ?? null };
+  return { id: data.id, name: data.name, email: data.username + "@snack.local", username: data.username, role: data.role, storeId: data.storeId ?? null };
 }
 
 // ---- Queries ----
@@ -84,15 +90,15 @@ export async function getStoreById(id: string): Promise<Store | undefined> {
 
 export async function getUserById(id: string): Promise<User | undefined> {
   const { rows } = await pool.query(
-    'SELECT id, name, email, role, "storeId" FROM users WHERE id = $1', [id]
+    'SELECT id, name, email, username, role, "storeId" FROM users WHERE id = $1', [id]
   );
   if (rows.length === 0) return undefined;
   const r = rows[0];
-  return { id: r.id, name: r.name, email: r.email, role: r.role, storeId: r.storeId };
+  return { id: r.id, name: r.name, email: r.email, username: r.username, role: r.role, storeId: r.storeId };
 }
 
 export async function getRequestsByRole(role: Role, storeId: string | null): Promise<ReplenishmentRequest[]> {
-  let { rows } = role === "OWNER"
+  let { rows } = (role === "OWNER" || role === "PARTNER")
     ? await pool.query(
         'SELECT r.*, s.name as "storeName" FROM replenishment_requests r LEFT JOIN stores s ON r."storeId" = s.id ORDER BY r."createdAt" DESC'
       )
@@ -196,4 +202,42 @@ export async function countRequestsByStatus(status: RequestStatus, storeId?: str
         [status]
       );
   return Number(rows[0].cnt);
+}
+
+// ---- User management ----
+export async function listUsers(): Promise<User[]> {
+  const { rows } = await pool.query(
+    'SELECT id, name, email, username, role, "storeId" FROM users ORDER BY role, name'
+  );
+  return rows.map((r: any) => ({ id: r.id, name: r.name, email: r.email, username: r.username, role: r.role, storeId: r.storeId }));
+}
+
+export async function updateUser(id: string, data: { name?: string; email?: string; username?: string; role?: Role; storeId?: string | null }): Promise<User | null> {
+  const sets: string[] = [];
+  const vals: any[] = [];
+  let idx = 1;
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) {
+      sets.push(`"${k}" = $${idx++}`);
+      vals.push(k === "storeId" ? (v || null) : v);
+    }
+  }
+  if (sets.length === 0) return null;
+  vals.push(id);
+  await pool.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${idx}`, vals);
+  return (await getUserById(id)) ?? null;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  // 设为无门店而非删除（保留补货记录关联）
+  await pool.query('UPDATE users SET "storeId" = NULL WHERE id = $1', [id]);
+}
+
+export async function changePassword(userId: string, oldPassword: string, newPassword: string): Promise<boolean> {
+  const { rows } = await pool.query("SELECT password FROM users WHERE id = $1", [userId]);
+  if (rows.length === 0) return false;
+  if (!verifyPassword(oldPassword, rows[0].password)) return false;
+  const hashed = hashPassword(newPassword);
+  await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashed, userId]);
+  return true;
 }
