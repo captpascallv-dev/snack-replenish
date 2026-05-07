@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
 
-  let requests = getRequestsByRole(user.role, user.storeId);
+  let requests = await getRequestsByRole(user.role, user.storeId);
 
   if (status && status !== "ALL") {
     requests = requests.filter((r) => r.status === status);
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "门店、产品名、公斤数为必填项" }, { status: 400 });
   }
 
-  const req = createRequest({
+  const req = await createRequest({
     storeId,
     productName,
     quantityNeeded: Number(quantityNeeded),

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// 轻量验证，不依赖 db.ts（middleware 跑在 Edge runtime）
 function parseSession(request: NextRequest) {
   const token = request.cookies.get("session")?.value;
   if (!token) return null;
@@ -12,12 +11,10 @@ function parseSession(request: NextRequest) {
   }
 }
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 首页（登录页）和白名单
   if (pathname === "/") {
-    // 已登录则跳转 dashboard
     const session = parseSession(request);
     if (session) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -25,7 +22,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 检查 (app) 下的页面
   if (
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/requests") ||
@@ -34,7 +30,6 @@ export function middleware(request: NextRequest) {
   ) {
     const session = parseSession(request);
     if (!session) {
-      // API 请求返回 401
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "未登录" }, { status: 401 });
       }
