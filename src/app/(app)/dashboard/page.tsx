@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface Store {
   id: string; name: string;
@@ -25,6 +26,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<ReplenishmentRequest[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,17 +68,18 @@ export default function DashboardPage() {
       {/* 统计卡片 */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "未处理", count: pending, color: "bg-amber-50 border-amber-200 text-amber-800" },
-          { label: "送货中", count: ordered, color: "bg-blue-50 border-blue-200 text-blue-800" },
-          { label: "已到货", count: received, color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
+          { key: "PENDING", label: "未处理", count: pending, color: "bg-amber-50 border-amber-200 text-amber-800" },
+          { key: "ORDERED", label: "送货中", count: ordered, color: "bg-blue-50 border-blue-200 text-blue-800" },
+          { key: "RECEIVED", label: "已到货", count: received, color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
         ].map((item) => (
-          <div
-            key={item.label}
-            className={`rounded-xl border px-3 py-4 text-center ${item.color}`}
+          <button
+            key={item.key}
+            onClick={() => router.push(`/requests?status=${item.key}`)}
+            className={`rounded-xl border px-3 py-4 text-center ${item.color} w-full hover:shadow-md transition-shadow cursor-pointer`}
           >
             <div className="text-2xl font-bold">{item.count}</div>
             <div className="text-xs mt-0.5">{item.label}</div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -105,7 +108,12 @@ export default function DashboardPage() {
 
       {/* 最近补货 */}
       <section>
-        <h3 className="text-sm font-semibold text-brand-green mb-3">最近补货请求</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-brand-green">最近补货请求</h3>
+          <button onClick={() => router.push("/requests")} className="text-xs text-brand-green hover:underline">
+            查看全部 →
+          </button>
+        </div>
         <div className="space-y-2">
           {requests.slice(0, 5).map((req) => (
             <a

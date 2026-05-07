@@ -39,11 +39,22 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const statusParam = params.get("status");
+    if (statusParam === "PENDING" || statusParam === "ORDERED" || statusParam === "RECEIVED") {
+      setFilter(statusParam);
+    }
     fetch("/api/requests")
       .then((r) => r.json())
       .then(setRequests)
       .finally(() => setLoading(false));
   }, []);
+
+  const handleFilterChange = (key: RequestStatus | "ALL") => {
+    setFilter(key);
+    const url = key === "ALL" ? "/requests" : `/requests?status=${key}`;
+    window.history.replaceState(null, "", url);
+  };
 
   const displayRequests = useMemo(() => {
     return filter === "ALL" ? requests : requests.filter((r) => r.status === filter);
@@ -60,7 +71,7 @@ export default function RequestsPage() {
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key)}
+            onClick={() => handleFilterChange(tab.key)}
             className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
               filter === tab.key
                 ? "bg-brand-green text-white"
