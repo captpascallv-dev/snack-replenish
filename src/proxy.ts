@@ -26,6 +26,7 @@ export default function proxy(request: NextRequest) {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/requests") ||
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/calendar") ||
     pathname.startsWith("/api/requests") ||
     pathname.startsWith("/api/stores") ||
     pathname.startsWith("/api/users") ||

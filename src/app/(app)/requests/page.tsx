@@ -6,10 +6,21 @@ interface Store {
   id: string; name: string;
 }
 
+interface Fulfillment {
+  orderDate: string; supplier: string;
+  kg?: number; caseSpec?: string; caseCount?: number; orderNotes?: string;
+}
+
+interface Receipt {
+  arrivalDate: string; actualQuantity: number; feedback: string;
+}
+
 interface ReplenishmentRequest {
   id: string; storeId: string; productName: string; quantityNeeded: number;
   unit: string; notes: string; status: string; requestedBy: string;
   createdAt: string; store?: Store;
+  fulfillment?: Fulfillment;
+  receipt?: Receipt;
 }
 
 type RequestStatus = "PENDING" | "ORDERED" | "RECEIVED";
@@ -36,6 +47,7 @@ const tabs: Array<{ key: RequestStatus | "ALL"; label: string }> = [
 export default function RequestsPage() {
   const [requests, setRequests] = useState<ReplenishmentRequest[]>([]);
   const [filter, setFilter] = useState<RequestStatus | "ALL">("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,8 +69,29 @@ export default function RequestsPage() {
   };
 
   const displayRequests = useMemo(() => {
-    return filter === "ALL" ? requests : requests.filter((r) => r.status === filter);
-  }, [requests, filter]);
+    let filtered = filter === "ALL" ? requests : requests.filter((r) => r.status === filter);
+    if (searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      filtered = filtered.filter((r) => r.productName.toLowerCase().includes(term));
+    }
+    return filtered;
+  }, [requests, filter, searchTerm]);
+
+  const avgDeliveryDays = useMemo(() => {
+    if (!searchTerm.trim()) return null;
+    const term = searchTerm.trim().toLowerCase();
+    const matching = requests.filter((r) =>
+      r.productName.toLowerCase().includes(term) &&
+      r.fulfillment?.orderDate &&
+      r.receipt?.arrivalDate
+    );
+    if (matching.length === 0) return null;
+    const totalDays = matching.reduce((sum, r) => {
+      const diff = (new Date(r.receipt!.arrivalDate).getTime() - new Date(r.fulfillment!.orderDate).getTime()) / 86400000;
+      return sum + diff;
+    }, 0);
+    return Math.round((totalDays / matching.length) * 10) / 10;
+  }, [requests, searchTerm]);
 
   if (loading) {
     return <div className="mx-auto max-w-lg px-4 py-20 text-center text-sm text-zinc-400">加载中…</div>;
@@ -66,6 +99,38 @@ export default function RequestsPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-4">
+      {/* 搜索栏 */}
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="搜索产品名称…"
+          className="w-full rounded-xl border border-zinc-200 bg-white pl-9 pr-8 py-2 text-sm focus:border-brand-green focus:outline-none"
+        />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* 搜索结果摘要 */}
+      {searchTerm.trim() && (
+        <div className="text-xs text-zinc-500 bg-white rounded-lg px-3 py-2">
+          搜索"{searchTerm.trim()}"：{displayRequests.length} 条结果
+          {avgDeliveryDays !== null && (
+            <> · 平均到货 <span className="font-medium text-brand-green">{avgDeliveryDays} 天</span></>
+          )}
+        </div>
+      )}
+
       {/* 状态筛选 */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {tabs.map((tab) => (
@@ -86,7 +151,7 @@ export default function RequestsPage() {
       {/* 列表 */}
       {displayRequests.length === 0 ? (
         <div className="py-20 text-center text-sm text-zinc-400">
-          暂无补货请求
+          {searchTerm ? "未找到匹配产品" : "暂无补货请求"}
         </div>
       ) : (
         <div className="space-y-2">
@@ -110,6 +175,12 @@ export default function RequestsPage() {
                   {req.notes && (
                     <div className="mt-1 text-xs text-zinc-400 truncate">
                       {req.notes}
+                    </div>
+                  )}
+                  {searchTerm && req.fulfillment && (
+                    <div className="mt-0.5 text-xs text-zinc-400">
+                      订货: {req.fulfillment.orderDate}
+                      {req.receipt && <> · 到货: {req.receipt.arrivalDate}</>}
                     </div>
                   )}
                   <div className="mt-1.5 text-xs text-zinc-400">

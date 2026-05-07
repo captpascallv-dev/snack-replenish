@@ -210,6 +210,78 @@ export async function countRequestsByStatus(status: RequestStatus, storeId?: str
   return Number(rows[0].cnt);
 }
 
+export interface CalendarEvent {
+  requestId: string;
+  productName: string;
+  storeName: string;
+  quantityNeeded: number;
+  unit: string;
+  status: string;
+  requestedBy: string;
+  date: string;
+  detail: string;
+}
+
+export async function getCalendarActivity(date: string, role: Role, storeId: string | null): Promise<{
+  submitted: CalendarEvent[];
+  ordered: CalendarEvent[];
+  arrived: CalendarEvent[];
+}> {
+  const storeFilter = (role !== "OWNER" && role !== "PARTNER")
+    ? ['AND r."storeId" = $2', [storeId]]
+    : ["", []];
+  const storeFilterF = role !== "OWNER" && role !== "PARTNER"
+    ? ['AND r."storeId" = $3', storeId]
+    : ['', null];
+  const params: any[] = role !== "OWNER" && role !== "PARTNER" ? [date, storeId] : [date];
+
+  const [subRows, ordRows, arrRows] = await Promise.all([
+    pool.query(
+      `SELECT r.*, s.name as "storeName" FROM replenishment_requests r
+       LEFT JOIN stores s ON r."storeId" = s.id
+       WHERE r."createdAt"::date = $1 ${storeFilter[0]} ORDER BY r."createdAt" DESC`,
+      params
+    ),
+    pool.query(
+      `SELECT f.*, r."productName", r."storeId", r."quantityNeeded", r.unit,
+              r.status, r."requestedBy", r."createdAt", s.name as "storeName"
+       FROM fulfillments f
+       JOIN replenishment_requests r ON f."requestId" = r.id
+       LEFT JOIN stores s ON r."storeId" = s.id
+       WHERE f."orderDate" = $1 ${storeFilterF[0]} ORDER BY f."orderDate" DESC`,
+      storeFilterF[1] ? [date, storeFilterF[1]] : [date]
+    ),
+    pool.query(
+      `SELECT rec.*, r."productName", r."storeId", r."quantityNeeded", r.unit,
+              r.status, r."requestedBy", r."createdAt", s.name as "storeName"
+       FROM receipts rec
+       JOIN replenishment_requests r ON rec."requestId" = r.id
+       LEFT JOIN stores s ON r."storeId" = s.id
+       WHERE rec."arrivalDate" = $1 ${storeFilterF[0]} ORDER BY rec."arrivalDate" DESC`,
+      storeFilterF[1] ? [date, storeFilterF[1]] : [date]
+    ),
+  ]);
+
+  const mapEvents = (rows: any[], detailFn: (r: any) => string): CalendarEvent[] =>
+    rows.map((r: any) => ({
+      requestId: r.requestId || r.id,
+      productName: r.productName,
+      storeName: r.storeName,
+      quantityNeeded: r.quantityNeeded,
+      unit: r.unit,
+      status: r.status,
+      requestedBy: r.requestedBy,
+      date,
+      detail: detailFn(r),
+    }));
+
+  return {
+    submitted: mapEvents(subRows.rows, (r) => r.notes || ""),
+    ordered: mapEvents(ordRows.rows, (r) => r.supplier || ""),
+    arrived: mapEvents(arrRows.rows, (r) => `实收${r.actualQuantity}${r.unit || ""} · ${r.feedback || ""}`),
+  };
+}
+
 // ---- User management ----
 export async function listUsers(): Promise<User[]> {
   const { rows } = await pool.query(
