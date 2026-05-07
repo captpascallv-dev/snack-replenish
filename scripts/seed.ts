@@ -1,6 +1,6 @@
 // 种子数据 — npx tsx scripts/seed.ts
 
-import db from "../src/lib/db";
+import db, { createUser } from "../src/lib/db";
 
 // Clean
 db.exec("DELETE FROM receipts");
@@ -13,15 +13,11 @@ db.exec("DELETE FROM stores");
 db.prepare("INSERT INTO stores (id, name) VALUES (?, ?)").run("store-1", "中洲湾旗舰店");
 db.prepare("INSERT INTO stores (id, name) VALUES (?, ?)").run("store-2", "科技园分店（筹备中）");
 
-// Users（密码明文 123456）
-db.prepare("INSERT INTO users (id, name, email, password, role, storeId) VALUES (?,?,?,?,?,?)")
-  .run("user-1", "Pascal", "pascal@snack.com", "123456", "OWNER", null);
-db.prepare("INSERT INTO users (id, name, email, password, role, storeId) VALUES (?,?,?,?,?,?)")
-  .run("user-2", "小王", "wang@snack.com", "123456", "STORE_MANAGER", "store-1");
-db.prepare("INSERT INTO users (id, name, email, password, role, storeId) VALUES (?,?,?,?,?,?)")
-  .run("user-3", "小李", "li@snack.com", "123456", "STORE_MANAGER", "store-1");
-db.prepare("INSERT INTO users (id, name, email, password, role, storeId) VALUES (?,?,?,?,?,?)")
-  .run("user-4", "小张", "zhang@snack.com", "123456", "STORE_MANAGER", "store-2");
+// Users（密码 123456，createUser 会自动哈希）
+createUser({ id: "user-1", name: "Pascal", email: "pascal@snack.com", password: "123456", role: "OWNER" });
+createUser({ id: "user-2", name: "小王", email: "wang@snack.com", password: "123456", role: "STORE_MANAGER", storeId: "store-1" });
+createUser({ id: "user-3", name: "小李", email: "li@snack.com", password: "123456", role: "STORE_MANAGER", storeId: "store-1" });
+createUser({ id: "user-4", name: "小张", email: "zhang@snack.com", password: "123456", role: "STORE_MANAGER", storeId: "store-2" });
 
 // Requests
 const now = new Date().toISOString();
