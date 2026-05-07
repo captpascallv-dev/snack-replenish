@@ -72,7 +72,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push("/");
   };
 
-  const displayItems = userRole === "OWNER" ? [...navItems, adminNavItem] : navItems;
+  const displayItems = (userRole === "OWNER" || userRole === "PARTNER") ? [...navItems, adminNavItem] : navItems;
 
   return (
     <div className="flex min-h-full flex-col bg-brand-cream">

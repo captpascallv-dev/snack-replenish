@@ -88,6 +88,12 @@ export async function getStoreById(id: string): Promise<Store | undefined> {
   return rows[0];
 }
 
+export async function createStore(name: string): Promise<Store> {
+  const id = `store-${Date.now()}`;
+  await pool.query("INSERT INTO stores (id, name) VALUES ($1, $2)", [id, name]);
+  return { id, name };
+}
+
 export async function getUserById(id: string): Promise<User | undefined> {
   const { rows } = await pool.query(
     'SELECT id, name, email, username, role, "storeId" FROM users WHERE id = $1', [id]

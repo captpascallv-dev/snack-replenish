@@ -29,6 +29,11 @@ export default function AdminPage() {
   const [msg, setMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // 门店表单
+  const [storeName, setStoreName] = useState("");
+  const [storeMsg, setStoreMsg] = useState("");
+  const [storeSubmitting, setStoreSubmitting] = useState(false);
+
   useEffect(() => {
     async function load() {
       const [meRes, usersRes, storesRes] = await Promise.all([
@@ -38,7 +43,7 @@ export default function AdminPage() {
       ]);
       if (!meRes.ok) { router.push("/"); return; }
       const me = await meRes.json();
-      if (me.role !== "OWNER") { router.push("/dashboard"); return; }
+      if (me.role !== "OWNER" && me.role !== "PARTNER") { router.push("/dashboard"); return; }
       setCurrentUser(me);
       setUsers(await usersRes.json());
       setStores(await storesRes.json());
@@ -69,6 +74,28 @@ export default function AdminPage() {
     }
   }
 
+  async function createStoreFn() {
+    if (!storeName.trim()) {
+      setStoreMsg("请填写门店名称"); return;
+    }
+    setStoreSubmitting(true);
+    setStoreMsg("");
+    const res = await fetch("/api/stores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: storeName.trim() }),
+    });
+    const data = await res.json();
+    setStoreSubmitting(false);
+    if (res.ok) {
+      setStores([...stores, data]);
+      setStoreName("");
+      setStoreMsg("门店创建成功");
+    } else {
+      setStoreMsg(data.error || "创建失败");
+    }
+  }
+
   async function disableUser(id: string, name: string) {
     if (!confirm(`确定要禁用 ${name} 吗？（不会删除数据）`)) return;
     const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
@@ -85,7 +112,37 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-6">
-      <h1 className="text-lg font-semibold text-brand-green">用户管理</h1>
+      <h1 className="text-lg font-semibold text-brand-green">后台管理</h1>
+
+      {/* 门店管理 */}
+      <div className="rounded-xl bg-white p-4 space-y-3 shadow-sm">
+        <h2 className="text-sm font-medium text-zinc-700">门店管理</h2>
+        <div className="flex gap-2">
+          <input
+            value={storeName}
+            onChange={(e) => setStoreName(e.target.value)}
+            className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+            placeholder="新门店名称"
+          />
+          <button
+            onClick={createStoreFn}
+            disabled={storeSubmitting}
+            className="rounded-lg bg-brand-green px-4 py-2 text-sm font-medium text-white hover:bg-brand-green-dark disabled:opacity-50 transition-colors"
+          >
+            {storeSubmitting ? "创建中…" : "添加"}
+          </button>
+        </div>
+        {storeMsg && <p className={`text-xs ${storeMsg.includes("成功") ? "text-emerald-600" : "text-red-500"}`}>{storeMsg}</p>}
+        {stores.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {stores.map(s => (
+              <span key={s.id} className="inline-block rounded-full bg-brand-cream px-3 py-1 text-xs text-zinc-700">
+                {s.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 新建用户 */}
       <div className="rounded-xl bg-white p-4 space-y-3 shadow-sm">
@@ -128,7 +185,7 @@ export default function AdminPage() {
               className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
             >
               <option value="STORE_MANAGER">店员</option>
-              <option value="PARTNER">合伙人</option>
+              {currentUser?.role === "OWNER" && <option value="PARTNER">合伙人</option>}
             </select>
           </div>
         </div>
@@ -181,7 +238,7 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
-              {u.role !== "OWNER" && (
+              {u.role !== "OWNER" && !(currentUser?.role === "PARTNER" && u.role === "PARTNER") && (
                 <button
                   onClick={() => disableUser(u.id, u.name)}
                   className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-2"
