@@ -231,7 +231,7 @@ export async function getCalendarActivity(date: string, role: Role, storeId: str
     ? ['AND r."storeId" = $2', [storeId]]
     : ["", []];
   const storeFilterF = role !== "OWNER" && role !== "PARTNER"
-    ? ['AND r."storeId" = $3', storeId]
+    ? ['AND r."storeId" = $2', storeId]
     : ['', null];
   const params: any[] = role !== "OWNER" && role !== "PARTNER" ? [date, storeId] : [date];
 
