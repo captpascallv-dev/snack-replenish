@@ -125,8 +125,10 @@ export default function RequestsPage() {
       {searchTerm.trim() && (
         <div className="text-xs text-zinc-500 bg-white rounded-lg px-3 py-2">
           搜索"{searchTerm.trim()}"：{displayRequests.length} 条结果
-          {avgDeliveryDays !== null && (
+          {avgDeliveryDays !== null ? (
             <> · 平均到货 <span className="font-medium text-brand-green">{avgDeliveryDays} 天</span></>
+          ) : (
+            <> · 暂无到货数据</>
           )}
         </div>
       )}
