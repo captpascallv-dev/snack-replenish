@@ -19,13 +19,18 @@ interface Receipt {
 interface ReplenishmentRequest {
   id: string; storeId: string; productName: string; quantityNeeded: number;
   unit: string; notes: string; status: string; requestedBy: string;
+  userId?: string;
   createdAt: string; store?: Store; fulfillment?: Fulfillment; receipt?: Receipt;
 }
 
+interface SessionUser {
+  id: string; name: string; role: string; storeId: string | null;
+}
+
 const statusLabel: Record<string, string> = {
-  PENDING: "待处理",
-  ORDERED: "已订货",
-  RECEIVED: "已收货",
+  PENDING: "未处理",
+  ORDERED: "送货中",
+  RECEIVED: "已到货",
 };
 
 const statusColor: Record<string, string> = {
@@ -38,6 +43,7 @@ export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [req, setReq] = useState<ReplenishmentRequest | null>(null);
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFulfillForm, setShowFulfillForm] = useState(false);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
@@ -59,14 +65,23 @@ export default function RequestDetailPage() {
   const id = params.id as string;
 
   useEffect(() => {
-    fetch(`/api/requests/${id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setReq(null);
-        else setReq(data);
-      })
-      .finally(() => setLoading(false));
+    async function load() {
+      const [reqRes, meRes] = await Promise.all([
+        fetch(`/api/requests/${id}`),
+        fetch("/api/auth/me"),
+      ]);
+      const reqData = await reqRes.json();
+      const meData = meRes.ok ? await meRes.json() : null;
+      if (reqData.error) setReq(null);
+      else setReq(reqData);
+      setCurrentUser(meData);
+      setLoading(false);
+    }
+    load();
   }, [id]);
+
+  const canFulfill = currentUser && (currentUser.role === "OWNER" || currentUser.role === "PARTNER");
+  const canReceive = currentUser && req && (currentUser.id === req.userId);
 
   const handleFulfill = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,10 +175,7 @@ export default function RequestDetailPage() {
       {/* 订货信息 */}
       {req.fulfillment && (
         <div className="rounded-xl bg-white px-4 py-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-brand-green mb-3 flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold">2</span>
-            订货信息
-          </h3>
+          <h3 className="text-sm font-semibold text-brand-green mb-3">订货信息</h3>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-500">订货日期</span>
@@ -204,10 +216,7 @@ export default function RequestDetailPage() {
       {/* 到货信息 */}
       {req.receipt && (
         <div className="rounded-xl bg-white px-4 py-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-brand-green mb-3 flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">3</span>
-            到货验收
-          </h3>
+          <h3 className="text-sm font-semibold text-brand-green mb-3">到货验收</h3>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-500">到货日期</span>
@@ -225,13 +234,13 @@ export default function RequestDetailPage() {
         </div>
       )}
 
-      {/* 订货表单 */}
-      {req.status === "PENDING" && !showFulfillForm && (
+      {/* 填写订货：PENDING 状态下，仅 OWNER/PARTNER */}
+      {req.status === "PENDING" && canFulfill && !showFulfillForm && (
         <button
           onClick={() => setShowFulfillForm(true)}
           className="w-full rounded-xl bg-brand-green py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-green-dark transition-colors"
         >
-          填写订货信息（老板操作）
+          填写订货信息
         </button>
       )}
       {showFulfillForm && (
@@ -285,13 +294,13 @@ export default function RequestDetailPage() {
         </form>
       )}
 
-      {/* 到货表单 */}
-      {req.status === "ORDERED" && !showReceiptForm && (
+      {/* 确认到货：ORDERED 状态下，仅申请人本人 */}
+      {req.status === "ORDERED" && canReceive && !showReceiptForm && (
         <button
           onClick={() => setShowReceiptForm(true)}
           className="w-full rounded-xl bg-brand-gold py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-green transition-colors"
         >
-          确认到货（店长操作）
+          确认到货
         </button>
       )}
       {showReceiptForm && (
@@ -325,7 +334,6 @@ export default function RequestDetailPage() {
         </form>
       )}
 
-      {/* 返回 */}
       <button
         onClick={() => router.back()}
         className="w-full rounded-xl border border-zinc-200 py-2.5 text-sm text-zinc-500 hover:text-zinc-700"

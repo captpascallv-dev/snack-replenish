@@ -13,9 +13,9 @@ interface ReplenishmentRequest {
 }
 
 const statusLabel: Record<string, string> = {
-  PENDING: "待处理",
-  ORDERED: "已订货",
-  RECEIVED: "已收货",
+  PENDING: "未处理",
+  ORDERED: "送货中",
+  RECEIVED: "已到货",
 };
 
 const statusColor: Record<string, string> = {
@@ -66,9 +66,9 @@ export default function DashboardPage() {
       {/* 统计卡片 */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "待处理", count: pending, color: "bg-amber-50 border-amber-200 text-amber-800" },
-          { label: "已订货", count: ordered, color: "bg-blue-50 border-blue-200 text-blue-800" },
-          { label: "已收货", count: received, color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
+          { label: "未处理", count: pending, color: "bg-amber-50 border-amber-200 text-amber-800" },
+          { label: "送货中", count: ordered, color: "bg-blue-50 border-blue-200 text-blue-800" },
+          { label: "已到货", count: received, color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
         ].map((item) => (
           <div
             key={item.label}
@@ -95,7 +95,7 @@ export default function DashboardPage() {
               </div>
               {store.pending > 0 && (
                 <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                  {store.pending} 待处理
+                  {store.pending} 未处理
                 </span>
               )}
             </div>

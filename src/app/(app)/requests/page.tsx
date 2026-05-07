@@ -15,9 +15,9 @@ interface ReplenishmentRequest {
 type RequestStatus = "PENDING" | "ORDERED" | "RECEIVED";
 
 const statusLabel: Record<string, string> = {
-  PENDING: "待处理",
-  ORDERED: "已订货",
-  RECEIVED: "已收货",
+  PENDING: "未处理",
+  ORDERED: "送货中",
+  RECEIVED: "已到货",
 };
 
 const statusColor: Record<string, string> = {
@@ -28,9 +28,9 @@ const statusColor: Record<string, string> = {
 
 const tabs: Array<{ key: RequestStatus | "ALL"; label: string }> = [
   { key: "ALL", label: "全部" },
-  { key: "PENDING", label: "待处理" },
-  { key: "ORDERED", label: "已订货" },
-  { key: "RECEIVED", label: "已收货" },
+  { key: "PENDING", label: "未处理" },
+  { key: "ORDERED", label: "送货中" },
+  { key: "RECEIVED", label: "已到货" },
 ];
 
 export default function RequestsPage() {
