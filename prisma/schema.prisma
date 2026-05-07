@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Store {
+  id   String @id @default(cuid())
+  name String @unique
+
+  users    User[]
+  requests ReplenishmentRequest[]
+}
+
+model User {
+  id      String  @id @default(cuid())
+  name    String
+  role    String  @default("STORE_MANAGER")
+  storeId String?
+  store   Store?  @relation(fields: [storeId], references: [id])
+
+  requests ReplenishmentRequest[]
+}
+
+model ReplenishmentRequest {
+  id            String  @id @default(cuid())
+  storeId       String
+  store         Store   @relation(fields: [storeId], references: [id])
+  productName   String
+  quantityNeeded Float
+  unit          String  @default("公斤")
+  notes         String  @default("")
+  status        String  @default("PENDING")
+  requestedBy   String
+  userId        String?
+  requestedByUser User?  @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fulfillment Fulfillment?
+  receipt     Receipt?
+}
+
+model Fulfillment {
+  id         String              @id @default(cuid())
+  requestId  String              @unique
+  request    ReplenishmentRequest @relation(fields: [requestId], references: [id])
+  orderDate  String
+  supplier   String
+  kg         Float?
+  caseSpec   String?
+  caseCount  Int?
+  orderNotes String?
+}
+
+model Receipt {
+  id             String              @id @default(cuid())
+  requestId      String              @unique
+  request        ReplenishmentRequest @relation(fields: [requestId], references: [id])
+  arrivalDate    String
+  actualQuantity Float
+  feedback       String
+}

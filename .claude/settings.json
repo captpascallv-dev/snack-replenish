@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(cd *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(curl *)",
+      "Bash(mkdir *)",
+      "Bash(rm *)",
+      "Bash(git *)",
+      "Bash(echo *)",
+      "Bash(claude *)",
+      "Bash(lark-cli *)",
+      "Bash(prisma *)",
+      "Bash(tsx *)",
+      "Edit(.claude)",
+      "Write(.claude)",
+      "Read(.claude)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch"
+    ]
+  }
+}

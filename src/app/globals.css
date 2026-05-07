@@ -3,11 +3,23 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* 品牌色 */
+  --brand-green:  #4A6B3A;  /* Pantone 574C 橄榄绿 30% */
+  --brand-gold:   #D5A84A;  /* Pantone 7555C 暖金 10% */
+  --brand-cream:  #F5EFDB;  /* Pantone 7506C 米白 60% */
+  --brand-green-dark: #3A552E;
+  --brand-gold-light: #E8C86A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-green: var(--brand-green);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-green-dark: var(--brand-green-dark);
+  --color-brand-gold-light: var(--brand-gold-light);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,5 +34,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
