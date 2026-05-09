@@ -14,6 +14,7 @@ interface User {
 const roleLabel: Record<string, string> = {
   OWNER: "超级管理员",
   PARTNER: "合伙人",
+  STORE_LEADER: "店长",
   STORE_MANAGER: "店员",
 };
 
@@ -33,6 +34,12 @@ export default function AdminPage() {
   const [storeName, setStoreName] = useState("");
   const [storeMsg, setStoreMsg] = useState("");
   const [storeSubmitting, setStoreSubmitting] = useState(false);
+
+  // 编辑状态
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ username: "", name: "", role: "STORE_MANAGER", storeId: "" });
+  const [editMsg, setEditMsg] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -96,15 +103,51 @@ export default function AdminPage() {
     }
   }
 
-  async function disableUser(id: string, name: string) {
-    if (!confirm(`确定要禁用 ${name} 吗？（不会删除数据）`)) return;
+  function startEdit(u: User) {
+    setEditingId(u.id);
+    setEditForm({ username: u.username, name: u.name, role: u.role, storeId: u.storeId || "" });
+    setEditMsg("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditMsg("");
+  }
+
+  async function saveEdit() {
+    if (!editForm.username || !editForm.name) {
+      setEditMsg("用户名和姓名为必填"); return;
+    }
+    setEditSaving(true);
+    setEditMsg("");
+    const res = await fetch(`/api/users/${editingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    const data = await res.json();
+    setEditSaving(false);
+    if (res.ok) {
+      setUsers(users.map(u => u.id === editingId ? data : u));
+      setEditingId(null);
+    } else {
+      setEditMsg(data.error || "保存失败");
+    }
+  }
+
+  async function deleteUser(id: string, name: string) {
+    if (!confirm(`确定要删除 ${name} 吗？此操作不可撤销。`)) return;
     const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
     if (res.ok) {
-      setUsers(users.map(u => u.id === id ? { ...u, storeId: null } : u));
+      setUsers(users.filter(u => u.id !== id));
+    } else {
+      const data = await res.json();
+      alert(data.error || "删除失败");
     }
   }
 
   const storeById = Object.fromEntries(stores.map(s => [s.id, s.name]));
+  const storeRoles = ["STORE_LEADER", "STORE_MANAGER"];
 
   if (loading) {
     return <div className="mx-auto max-w-lg px-4 py-20 text-center text-sm text-zinc-400">加载中…</div>;
@@ -185,11 +228,12 @@ export default function AdminPage() {
               className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
             >
               <option value="STORE_MANAGER">店员</option>
+              <option value="STORE_LEADER">店长</option>
               {currentUser?.role === "OWNER" && <option value="PARTNER">合伙人</option>}
             </select>
           </div>
         </div>
-        {form.role === "STORE_MANAGER" && (
+        {storeRoles.includes(form.role) && (
           <div>
             <label className="text-xs text-zinc-400">所属门店 *</label>
             <select
@@ -221,30 +265,108 @@ export default function AdminPage() {
         </div>
         <div className="divide-y divide-zinc-50">
           {users.map((u) => (
-            <div key={u.id} className="flex items-center justify-between px-4 py-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-800 truncate">{u.name}</span>
-                  <span className="text-xs text-zinc-400">@{u.username}</span>
+            <div key={u.id}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-zinc-800 truncate">{u.name}</span>
+                    <span className="text-xs text-zinc-400">@{u.username}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      u.role === "OWNER" ? "bg-amber-100 text-amber-700" :
+                      u.role === "PARTNER" ? "bg-blue-100 text-blue-700" :
+                      u.role === "STORE_LEADER" ? "bg-emerald-100 text-emerald-700" :
+                      "bg-zinc-100 text-zinc-500"
+                    }`}>{roleLabel[u.role] || u.role}</span>
+                    {u.storeId && storeById[u.storeId] && (
+                      <span className="text-xs text-zinc-400 truncate">{storeById[u.storeId]}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                    u.role === "OWNER" ? "bg-amber-100 text-amber-700" :
-                    u.role === "PARTNER" ? "bg-blue-100 text-blue-700" :
-                    "bg-zinc-100 text-zinc-500"
-                  }`}>{roleLabel[u.role] || u.role}</span>
-                  {u.storeId && storeById[u.storeId] && (
-                    <span className="text-xs text-zinc-400 truncate">{storeById[u.storeId]}</span>
-                  )}
-                </div>
+                {u.role !== "OWNER" && !(currentUser?.role === "PARTNER" && u.role === "PARTNER") && (
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                    <button
+                      onClick={() => startEdit(u)}
+                      className="text-xs text-zinc-400 hover:text-brand-green px-1.5 py-1"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => deleteUser(u.id, u.name)}
+                      className="text-xs text-red-400 hover:text-red-600 px-1.5 py-1"
+                    >
+                      删除
+                    </button>
+                  </div>
+                )}
               </div>
-              {u.role !== "OWNER" && !(currentUser?.role === "PARTNER" && u.role === "PARTNER") && (
-                <button
-                  onClick={() => disableUser(u.id, u.name)}
-                  className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-2"
-                >
-                  禁用
-                </button>
+
+              {/* 编辑面板 */}
+              {editingId === u.id && (
+                <div className="px-4 py-3 bg-zinc-50 border-t border-zinc-100 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-zinc-400">用户名</label>
+                      <input
+                        value={editForm.username}
+                        onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                        className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400">姓名</label>
+                      <input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-zinc-400">角色</label>
+                      <select
+                        value={editForm.role}
+                        onChange={(e) => setEditForm({ ...editForm, role: e.target.value, storeId: "" })}
+                        className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="STORE_MANAGER">店员</option>
+                        <option value="STORE_LEADER">店长</option>
+                        {currentUser?.role === "OWNER" && <option value="PARTNER">合伙人</option>}
+                      </select>
+                    </div>
+                    {storeRoles.includes(editForm.role) && (
+                      <div>
+                        <label className="text-xs text-zinc-400">所属门店</label>
+                        <select
+                          value={editForm.storeId}
+                          onChange={(e) => setEditForm({ ...editForm, storeId: e.target.value })}
+                          className="w-full mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm bg-white"
+                        >
+                          <option value="">无</option>
+                          {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  {editMsg && <p className="text-xs text-red-500">{editMsg}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveEdit}
+                      disabled={editSaving}
+                      className="rounded-lg bg-brand-green px-4 py-2 text-xs font-medium text-white hover:bg-brand-green-dark disabled:opacity-50"
+                    >
+                      {editSaving ? "保存中…" : "保存"}
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="rounded-lg bg-zinc-200 px-4 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-300"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ))}

@@ -23,15 +23,15 @@ export async function POST(request: NextRequest) {
   if (!username || !name || !password || !role) {
     return NextResponse.json({ error: "用户名、姓名、密码、角色为必填" }, { status: 400 });
   }
-  if (!["PARTNER", "STORE_MANAGER"].includes(role)) {
-    return NextResponse.json({ error: "角色只能为 PARTNER 或 STORE_MANAGER" }, { status: 400 });
+  if (!["PARTNER", "STORE_LEADER", "STORE_MANAGER"].includes(role)) {
+    return NextResponse.json({ error: "无效角色" }, { status: 400 });
   }
-  // 合伙人只能创建店员
-  if (user!.role === "PARTNER" && role !== "STORE_MANAGER") {
-    return NextResponse.json({ error: "合伙人只能创建店员账号" }, { status: 403 });
+  // 合伙人只能创建店员/店长
+  if (user!.role === "PARTNER" && !["STORE_LEADER", "STORE_MANAGER"].includes(role)) {
+    return NextResponse.json({ error: "合伙人只能创建店员/店长账号" }, { status: 403 });
   }
-  if (role === "STORE_MANAGER" && !storeId) {
-    return NextResponse.json({ error: "店员必须指定门店" }, { status: 400 });
+  if ((role === "STORE_MANAGER" || role === "STORE_LEADER") && !storeId) {
+    return NextResponse.json({ error: "店员/店长必须指定门店" }, { status: 400 });
   }
   const newUser = await createUser({
     id: `user-${Date.now()}`,

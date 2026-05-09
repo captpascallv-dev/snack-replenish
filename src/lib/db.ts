@@ -7,10 +7,11 @@ const pool = new Pool({
 });
 
 // ---- Types ----
-export type Role = "OWNER" | "PARTNER" | "STORE_MANAGER";
+export type Role = "OWNER" | "PARTNER" | "STORE_LEADER" | "STORE_MANAGER";
 export const ROLE_LABELS: Record<Role, string> = {
   OWNER: "超级管理员",
   PARTNER: "合伙人",
+  STORE_LEADER: "店长",
   STORE_MANAGER: "店员",
 };
 export type RequestStatus = "PENDING" | "ORDERED" | "RECEIVED";
@@ -307,8 +308,8 @@ export async function updateUser(id: string, data: { name?: string; email?: stri
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  // 设为无门店而非删除（保留补货记录关联）
-  await pool.query('UPDATE users SET "storeId" = NULL WHERE id = $1', [id]);
+  await pool.query('UPDATE replenishment_requests SET "userId" = NULL WHERE "userId" = $1', [id]);
+  await pool.query("DELETE FROM users WHERE id = $1", [id]);
 }
 
 export async function changePassword(userId: string, oldPassword: string, newPassword: string): Promise<boolean> {

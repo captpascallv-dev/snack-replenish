@@ -23,7 +23,7 @@ export async function PATCH(
   }
   const body = await request.json();
   // 合伙人不能提权
-  if (user!.role === "PARTNER" && body.role && body.role !== "STORE_MANAGER") {
+  if (user!.role === "PARTNER" && body.role && !["STORE_LEADER", "STORE_MANAGER"].includes(body.role)) {
     return NextResponse.json({ error: "合伙人不能设置该角色" }, { status: 403 });
   }
   const updated = await updateUser(id, body);

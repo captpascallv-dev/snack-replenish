@@ -7,7 +7,7 @@ export interface SessionUser {
   id: string;
   name: string;
   username: string;
-  role: "OWNER" | "PARTNER" | "STORE_MANAGER";
+  role: import("./db").Role;
   storeId: string | null;
 }
 
