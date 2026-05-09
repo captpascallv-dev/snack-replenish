@@ -17,6 +17,6 @@ export async function POST(request: NextRequest) {
     await setSession(user);
     return NextResponse.json({ ok: true, user });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ error: "服务器内部错误，请稍后重试" }, { status: 500 });
   }
 }
